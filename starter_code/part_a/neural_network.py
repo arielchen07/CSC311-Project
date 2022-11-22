@@ -8,6 +8,9 @@ import torch.utils.data
 
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+
+from starter_code.utils import load_train_sparse, load_valid_csv, load_public_test_csv
 
 
 def load_data(base_path="../data"):
@@ -49,6 +52,16 @@ class AutoEncoder(nn.Module):
         # Define linear functions.
         self.g = nn.Linear(num_question, k)
         self.h = nn.Linear(k, num_question)
+        self.k = k
+
+        self.encoder = torch.nn.Sequential(
+            self.g,
+            torch.nn.Sigmoid()
+        )
+        self.decoder = torch.nn.Sequential(
+            self.h,
+            torch.nn.Sigmoid()
+        )
 
     def get_weight_norm(self):
         """ Return ||W^1||^2 + ||W^2||^2.
@@ -70,11 +83,21 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        # inner_layer = torch.mm(self.g.weight, inputs.T) + torch.reshape(self.g.bias, (self.k, 1))
+        # outer_layer = torch.mm(self.h.weight, inner_layer) + self.h.bias
+        # out = sigmoid(outer_layer)
+
+        #reference: https://www.geeksforgeeks.org/implementing-an-autoencoder-in-pytorch/
+        encoded = self.encoder(inputs)
+        decoded = self.decoder(encoded)
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
-        return out
+        return decoded
+
+
+def sigmoid(x):
+    return 1 / (1 + torch.exp(-1 * x))
 
 
 def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
@@ -91,7 +114,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     :return: None
     """
     # TODO: Add a regularizer to the cost function. 
-    
+
     # Tell PyTorch you are training the model.
     model.train()
 
@@ -108,18 +131,19 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
 
             optimizer.zero_grad()
             output = model(inputs)
-
+            #print(output)
             # Mask the target to only compute the gradient of valid entries.
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            loss = torch.sum((output - target) ** 2.)
+            loss = torch.sum((output - target) ** 2) + 0.5*lamb*model.get_weight_norm()
             loss.backward()
 
             train_loss += loss.item()
             optimizer.step()
 
         valid_acc = evaluate(model, zero_train_data, valid_data)
+
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
     #####################################################################
@@ -145,7 +169,7 @@ def evaluate(model, train_data, valid_data):
     for i, u in enumerate(valid_data["user_id"]):
         inputs = Variable(train_data[u]).unsqueeze(0)
         output = model(inputs)
-
+        #print(output)
         guess = output[0][valid_data["question_id"][i]].item() >= 0.5
         if guess == valid_data["is_correct"][i]:
             correct += 1
@@ -155,20 +179,21 @@ def evaluate(model, train_data, valid_data):
 
 def main():
     zero_train_matrix, train_matrix, valid_data, test_data = load_data()
-
+    num_question = train_matrix.shape[1]
     #####################################################################
     # TODO:                                                             #
     # Try out 5 different k and select the best k using the             #
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    k = None
-    model = None
+    k_list = [10, 50, 100, 200, 500]
+    lamb_list = [0.001, 0.01, 0.1, 1]
+    model = AutoEncoder(num_question, k_list[0])
 
     # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
+    lr = 0.005
+    num_epoch = 150
+    lamb = lamb_list[1]
 
     train(model, lr, lamb, train_matrix, zero_train_matrix,
           valid_data, num_epoch)
