@@ -19,7 +19,7 @@ def knn_impute_by_user(matrix, valid_data, k):
     # We use NaN-Euclidean distance measure.
     mat = nbrs.fit_transform(matrix)
     acc = sparse_matrix_evaluate(valid_data, mat)
-    print("Validation Accuracy: {}".format(acc))
+    print("By User Validation Accuracy: {}".format(acc))
     return acc
 
 
@@ -37,7 +37,11 @@ def knn_impute_by_item(matrix, valid_data, k):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    acc = None
+    nbrs = KNNImputer(n_neighbors=k)
+    # We use NaN-Euclidean distance measure.
+    mat = nbrs.fit_transform(matrix.T).T
+    acc = sparse_matrix_evaluate(valid_data, mat)
+    print("By Item Validation Accuracy: {}".format(acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -53,6 +57,8 @@ def main():
     print(sparse_matrix)
     print("Shape of sparse matrix:")
     print(sparse_matrix.shape)
+    # print("Shape of valid date:")
+    # print(val_data)
 
     #####################################################################
     # TODO:                                                             #
@@ -60,7 +66,11 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
-    pass
+    K = [1, 6, 11, 16, 21, 26]
+    for k in K:
+        print(k)
+        knn_impute_by_user(sparse_matrix, val_data, k)
+        knn_impute_by_item(sparse_matrix, val_data, k)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
