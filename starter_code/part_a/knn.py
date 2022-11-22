@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 from sklearn.impute import KNNImputer
 from utils import *
 
@@ -66,11 +67,46 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
-    K = [1, 6, 11, 16, 21, 26]
-    for k in K:
-        print(k)
-        knn_impute_by_user(sparse_matrix, val_data, k)
-        knn_impute_by_item(sparse_matrix, val_data, k)
+    # Q1(a)
+    acc_dict = {}
+    for k in [1, 6, 11, 16, 21, 26]:
+        acc = knn_impute_by_user(sparse_matrix, val_data, k)
+        acc_dict[k] = acc
+
+    plt.figure()
+    xs = acc_dict.keys()
+    ys = [acc_dict[x] for x in xs]
+    plt.scatter(xs, ys, s=15)
+    plt.xlabel('k')
+    plt.ylabel('accuracy on the validation data')
+    plt.title("Accuracy on the validation data imputed by user "
+              "as a function of k")
+    plt.show()
+
+    # Q1(b)
+    print('final test accuracy with k=11')
+    chosen_k = 11
+    acc_test = knn_impute_by_user(sparse_matrix, test_data, chosen_k)
+
+    # Q1(c)
+    acc_dict = {}
+    for k in [1, 6, 11, 16, 21, 26]:
+        acc = knn_impute_by_item(sparse_matrix, val_data, k)
+        acc_dict[k] = acc
+
+    plt.figure()
+    xs = acc_dict.keys()
+    ys = [acc_dict[x] for x in xs]
+    plt.scatter(xs, ys, s=15)
+    plt.xlabel('k')
+    plt.ylabel('accuracy on the validation data')
+    plt.title("Accuracy on the validation data imputed by item "
+              "as a function of k")
+    plt.show()
+
+    print('final test accuracy with k=21')
+    chosen_k = 21
+    acc_test = knn_impute_by_item(sparse_matrix, test_data, chosen_k)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
