@@ -52,18 +52,17 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    for i in range(10):
-        # fix beta, update theta
-        temp1 = theta[:, np.newaxis] - beta[np.newaxis, :]
-        sig_matrix1 = sigmoid(temp1)
-        partial_theta = np.sum(data, axis=1) - np.sum(sig_matrix1, axis=1)
-        theta += lr * partial_theta
+    # fix beta, update theta
+    temp1 = theta[:, np.newaxis] - beta[np.newaxis, :]
+    sig_matrix1 = sigmoid(temp1)
+    partial_theta = np.sum(data, axis=1) - np.sum(sig_matrix1, axis=1)
+    theta += lr * partial_theta
 
-        # fix theta, update beta
-        temp2 = theta[:, np.newaxis] - beta[np.newaxis, :]
-        sig_matrix2 = sigmoid(temp2)
-        partial_beta = - np.sum(data, axis=0) + np.sum(sig_matrix2, axis=0)
-        beta += lr * partial_beta
+    # fix theta, update beta
+    temp2 = theta[:, np.newaxis] - beta[np.newaxis, :]
+    sig_matrix2 = sigmoid(temp2)
+    partial_beta = - np.sum(data, axis=0) + np.sum(sig_matrix2, axis=0)
+    beta += lr * partial_beta
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
