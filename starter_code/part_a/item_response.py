@@ -24,7 +24,23 @@ def neg_log_likelihood(data, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    log_lklihood = 0.
+    # N, M = data.shape
+    data_array = data.toarray()
+    theta_minus_beta = theta[:, np.newaxis] - beta[np.newaxis, :]
+    # print(theta_minus_beta)
+    sig = sigmoid(theta_minus_beta)
+    # print(sig)
+    log_sig = np.log(sig)
+    # print(log_sig)
+    log_1_minus_sig = np.log(1 - sig)
+    # print(log_1_minus_sig)
+    # print(log_sig.shape)
+    sum_first_part = data_array * log_sig
+    # print(sum_first_part)
+    sum_second_part = (1 - data_array) * log_1_minus_sig
+    # print(sum_second_part)
+    log_lklihood = np.nansum(sum_first_part + sum_second_part)
+    # print(log_lklihood)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -52,16 +68,28 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
+    data_array = data.toarray()
+
     # fix beta, update theta
-    temp1 = theta[:, np.newaxis] - beta[np.newaxis, :]
-    sig_matrix1 = sigmoid(temp1)
-    partial_theta = np.sum(data, axis=1) - np.sum(sig_matrix1, axis=1)
+    theta_minus_beta_1 = theta[:, np.newaxis] - beta[np.newaxis, :]
+    # print(theta_minus_beta_1)
+    sig_matrix1 = sigmoid(theta_minus_beta_1)
+    # print(sig_matrix1)
+    # partial_theta = np.sum(data_array, axis=1) - np.sum(sig_matrix1, axis=1)
+    partial_theta = np.nansum(data_array - sig_matrix1, axis=1)
+    # print(partial_theta)
+    # print(lr * partial_theta)
     theta += lr * partial_theta
 
     # fix theta, update beta
-    temp2 = theta[:, np.newaxis] - beta[np.newaxis, :]
-    sig_matrix2 = sigmoid(temp2)
-    partial_beta = - np.sum(data, axis=0) + np.sum(sig_matrix2, axis=0)
+    theta_minus_beta_2 = theta[:, np.newaxis] - beta[np.newaxis, :]
+    # print(theta_minus_beta_2)
+    sig_matrix2 = sigmoid(theta_minus_beta_2)
+    # print(sig_matrix2)
+    # partial_beta = - np.sum(data_array, axis=0) + np.sum(sig_matrix2, axis=0)
+    partial_beta = np.nansum(- data_array + sig_matrix2, axis=0)
+    # print(partial_theta)
+    # print(lr * partial_theta)
     beta += lr * partial_beta
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -83,8 +111,9 @@ def irt(data, val_data, lr, iterations):
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
-    theta = None
-    beta = None
+    N, M = data.shape
+    theta = np.zeros(N)
+    beta = np.zeros(M)
 
     val_acc_lst = []
 
@@ -130,7 +159,11 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    pass
+    theta, beta, acc = irt(sparse_matrix, val_data, 0.005, 15)
+    print("val accuracy: ")
+    print(evaluate(val_data, theta, beta))
+    # print("test accuracy: ")
+    # print(evaluate(test_data, theta, beta))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
