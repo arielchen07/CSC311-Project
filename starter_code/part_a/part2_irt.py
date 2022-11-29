@@ -13,7 +13,7 @@ def sigmoid(x):
     return np.exp(x) / (1 + np.exp(x))
 
 
-def neg_log_likelihood(data, is_matrix, theta, beta):
+def neg_log_likelihood(data, is_matrix, theta, beta, alpha):
     """ Compute the negative log-likelihood.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -23,17 +23,19 @@ def neg_log_likelihood(data, is_matrix, theta, beta):
     :param is_matrix: whether the input data is a sparse matrix, if false, then input is a dictionary
     :param theta: Vector
     :param beta: Vector
+    :param alpha: Vector (how discriminative each question is)
     :return: float
     """
     #####################################################################
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    if (is_matrix):
+    if is_matrix:
         data_array = data.toarray()
         theta_minus_beta = theta[:, np.newaxis] - beta[np.newaxis, :]
         # print(theta_minus_beta)
-        sig = sigmoid(theta_minus_beta)
+        alpha_theta_minus_beta = theta_minus_beta * alpha
+        sig = sigmoid(alpha_theta_minus_beta)
         # print(sig)
         log_sig = np.log(sig)
         # print(log_sig)
@@ -51,7 +53,8 @@ def neg_log_likelihood(data, is_matrix, theta, beta):
         for i in range(len(data["is_correct"])):
             theta_minus_beta = theta[data["user_id"][i]] - beta[data["question_id"][i]]
             c_ij = data["is_correct"][i]
-            sig = sigmoid(theta_minus_beta)
+            alpha_theta_minus_beta = theta_minus_beta * alpha[data["question_id"][i]]
+            sig = sigmoid(alpha_theta_minus_beta)
             log_lklihood += c_ij * np.log(sig) + (1 - c_ij) * np.log(1 - sig)
 
     #####################################################################
@@ -60,7 +63,7 @@ def neg_log_likelihood(data, is_matrix, theta, beta):
     return -log_lklihood
 
 
-def update_theta_beta(data, lr, theta, beta):
+def update_theta_beta(data, lr, theta, beta, alpha):
     """ Update theta and beta using gradient descent.
 
     You are using alternating gradient descent. Your update should look:
@@ -75,6 +78,7 @@ def update_theta_beta(data, lr, theta, beta):
     :param lr: float
     :param theta: Vector
     :param beta: Vector
+    :param alpha: Vector (how discriminative each question is)
     :return: tuple of vectors
     """
     #####################################################################
@@ -83,29 +87,50 @@ def update_theta_beta(data, lr, theta, beta):
     #####################################################################
     data_array = data.toarray()
 
-    # fix beta, update theta
+    # data_array = np.array([[1, 0], [0, 1], [1, 1]])
+
+    # fix beta, r, update theta
     theta_minus_beta_1 = theta[:, np.newaxis] - beta[np.newaxis, :]
     # print(theta_minus_beta_1)
-    sig_matrix1 = sigmoid(theta_minus_beta_1)
+    alpha_theta_minus_beta_1 = theta_minus_beta_1 * alpha
+    # print(r_theta_minus_beta_1)
+    sig_matrix1 = sigmoid(alpha_theta_minus_beta_1)
     # print(sig_matrix1)
-    partial_theta = np.nansum(data_array - sig_matrix1, axis=1)
+    # partial_theta = np.sum(data_array, axis=1) - np.sum(sig_matrix1, axis=1)
+    partial_theta = np.nansum((data_array - sig_matrix1) * alpha, axis=1)
     # print(partial_theta)
     # print(lr * partial_theta)
     theta += lr * partial_theta
 
-    # fix theta, update beta
+    # fix theta, r, update beta
     theta_minus_beta_2 = theta[:, np.newaxis] - beta[np.newaxis, :]
     # print(theta_minus_beta_2)
-    sig_matrix2 = sigmoid(theta_minus_beta_2)
+    alpha_theta_minus_beta_2 = theta_minus_beta_2 * alpha
+    # print(r_theta_minus_beta_2)
+    sig_matrix2 = sigmoid(alpha_theta_minus_beta_2)
     # print(sig_matrix2)
-    partial_beta = np.nansum(-1 * data_array + sig_matrix2, axis=0)
+    # partial_beta = - np.sum(data_array, axis=0) + np.sum(sig_matrix2, axis=0)
+    partial_beta = np.nansum((-1 * data_array + sig_matrix2) * alpha, axis=0)
     # print(partial_theta)
     # print(lr * partial_theta)
     beta += lr * partial_beta
+
+    # fix theta, beta, update r
+    theta_minus_beta_3 = theta[:, np.newaxis] - beta[np.newaxis, :]
+    # print(theta_minus_beta_3)
+    alpha_theta_minus_beta_3 = theta_minus_beta_3 * alpha
+    # print(r_theta_minus_beta_2)
+    sig_matrix3 = sigmoid(alpha_theta_minus_beta_3)
+    # print(sig_matrix3)
+    partial_alpha = np.nansum((data_array - sig_matrix3) * theta_minus_beta_3, axis=0)
+    # print(partial_alpha)
+    # print(lr * partial_r)
+    alpha += lr * partial_alpha
+    r = np.clip(alpha, 0, 2)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
-    return theta, beta
+    return theta, beta, alpha
 
 
 def irt(data, val_data, lr, iterations):
@@ -125,20 +150,21 @@ def irt(data, val_data, lr, iterations):
     N, M = data.shape
     theta = np.full(N, 0.5)
     beta = np.zeros(M)
+    alpha = np.ones(M)
 
     train_log_like = []
     val_log_like = []
     val_acc_lst = []
 
     for i in range(iterations):
-        neg_lld = neg_log_likelihood(data, True, theta=theta, beta=beta)
-        val_neg_lld = neg_log_likelihood(val_data, False, theta=theta, beta=beta)
+        neg_lld = neg_log_likelihood(data, True, theta=theta, beta=beta, alpha=alpha)
+        val_neg_lld = neg_log_likelihood(val_data, False, theta=theta, beta=beta, alpha=alpha)
         score = evaluate(data=val_data, theta=theta, beta=beta)
         train_log_like.append(neg_lld)
         val_log_like.append(val_neg_lld)
         val_acc_lst.append(score)
         print("NLLK: {} \t Score: {}".format(neg_lld, score))
-        theta, beta = update_theta_beta(data, lr, theta, beta)
+        theta, beta, r = update_theta_beta(data, lr, theta, beta, alpha)
 
     # TODO: You may change the return values to achieve what you want.
     return theta, beta, val_acc_lst, train_log_like, val_log_like
@@ -175,23 +201,9 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    # print(len(val_data["user_id"]))
-    # print(val_data["user_id"])
-    # print(max(val_data["user_id"]))
-    # print(len(val_data["question_id"]))
-    # print(val_data["question_id"])
-    # print(max(val_data["question_id"]))
-    # print(len(val_data["is_correct"]))
-    # print(val_data["is_correct"])
-    # N, M = sparse_matrix.shape
-    # var_sparse = lil_matrix((N, M))
-    # for i in range(len(val_data["is_correct"])):
-    #     var_sparse[val_data["user_id"][i], val_data["question_id"][i]] = val_data["is_correct"][i]
-    # theta, beta, acc, train_log_like, val_log_like = irt(sparse_matrix, var_sparse, 0.001, 100)
-
     # hyperparameter:
-    num_iteration = 100
-    lr = 0.001
+    num_iteration = 80
+    lr = 0.002
 
     theta, beta, acc, train_log_like, val_log_like = irt(sparse_matrix, val_data, lr, num_iteration)
     print("val accuracy: ")
