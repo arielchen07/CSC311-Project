@@ -111,8 +111,8 @@ def irt(data, val_data, lr, iterations):
         neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
         val_neg_lld = neg_log_likelihood(val_data, theta=theta, beta=beta)
         score = evaluate(data=val_data, theta=theta, beta=beta)
-        train_log_like.append(-neg_lld)
-        val_log_like.append(-val_neg_lld)
+        train_log_like.append(neg_lld)
+        val_log_like.append(val_neg_lld)
         val_acc_lst.append(score)
         print("Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta = update_theta_beta(data, lr, theta, beta)
@@ -157,23 +157,24 @@ def main():
     lr = 0.001
 
     theta, beta, acc, train_log_like, val_log_like = irt(train_data, val_data, lr, num_iteration)
+    print(f"hyperparameters: \n num_iteration = {num_iteration}, learning rate = {lr}")
     print("val accuracy: ")
     print(evaluate(val_data, theta, beta))
     print("test accuracy: ")
     print(evaluate(test_data, theta, beta))
 
-    plt.plot([x for x in range(num_iteration)], train_log_like, label="train loglike")
+    # plot for train set neg log likelihood
+    plt.plot([x for x in range(num_iteration)], train_log_like)
     plt.xlabel("number of iterations")
-    plt.ylabel("log likelihood")
-    plt.title("Log likelihood vs iteration")
-    plt.legend()
+    plt.ylabel("ned log likelihood")
+    plt.title("Negative Log likelihood for Train Set")
     plt.show()
 
-    plt.plot([x for x in range(num_iteration)], val_log_like, label="val loglike")
+    # plot for validation set neg log likelihood
+    plt.plot([x for x in range(num_iteration)], val_log_like)
     plt.xlabel("number of iterations")
-    plt.ylabel("log likelihood")
-    plt.title("Log likelihood vs iteration")
-    plt.legend()
+    plt.ylabel("neg log likelihood")
+    plt.title("Negative Log likelihood for Validation Set")
     plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -182,12 +183,12 @@ def main():
     #####################################################################
     # TODO:                                                             #
     # Implement part (d)
-    plt.scatter(theta, [sigmoid(t - beta[2]) for t in theta], label="q2")
-    plt.scatter(theta, [sigmoid(t - beta[3]) for t in theta], label="q3")
-    plt.scatter(theta, [sigmoid(t - beta[4]) for t in theta], label="q4")
+    plt.scatter(theta, [sigmoid(t - beta[2]) for t in theta], label="q1")
+    plt.scatter(theta, [sigmoid(t - beta[3]) for t in theta], label="q2")
+    plt.scatter(theta, [sigmoid(t - beta[4]) for t in theta], label="q3")
     plt.xlabel("theta")
     plt.ylabel("probability p(c_ij = 1)")
-    plt.title("Probability vs Theta")
+    plt.title("Probability of Correct Response vs Theta")
     plt.legend()
     plt.show()
     #####################################################################
