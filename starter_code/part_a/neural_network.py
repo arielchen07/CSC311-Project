@@ -1,3 +1,4 @@
+from scipy.sparse import lil_matrix
 from utils import *
 from torch.autograd import Variable
 
@@ -5,10 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
+import scipy.sparse as sp
 
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+
+from scipy.sparse import csc_matrix
 
 from starter_code.utils import load_train_sparse, load_valid_csv, load_public_test_csv
 
@@ -29,6 +33,8 @@ def load_data(base_path="../data"):
     train_matrix = load_train_sparse(base_path).toarray()
     valid_data = load_valid_csv(base_path)
     test_data = load_public_test_csv(base_path)
+    # TODO: convert valid_data from dict to sparse matrix
+    #  https://stackoverflow.com/questions/43381336/create-a-sparse-matrix-from-dictionary
 
     zero_train_matrix = train_matrix.copy()
     # Fill in the missing entries to 0.
@@ -50,6 +56,7 @@ class AutoEncoder(nn.Module):
         super(AutoEncoder, self).__init__()
 
         # Define linear functions.
+
         self.g = nn.Linear(num_question, k)
         self.h = nn.Linear(k, num_question)
         self.k = k
@@ -58,6 +65,21 @@ class AutoEncoder(nn.Module):
             self.g,
             torch.nn.Sigmoid()
         )
+        # self.encoder = torch.nn.Sequential(
+        #     self.g,
+        #     torch.nn.Sigmoid(),
+        #     self.f,  # 50, 5
+        #     torch.nn.Sigmoid(),
+        #
+        # )
+
+        # self.decoder = torch.nn.Sequential(
+        #
+        #     self.q,
+        #     torch.nn.Sigmoid(),
+        #     self.h,
+        #     torch.nn.Sigmoid()
+        # )
         self.decoder = torch.nn.Sequential(
             self.h,
             torch.nn.Sigmoid()
@@ -83,9 +105,6 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        # inner_layer = torch.mm(self.g.weight, inputs.T) + torch.reshape(self.g.bias, (self.k, 1))
-        # outer_layer = torch.mm(self.h.weight, inner_layer) + self.h.bias
-        # out = sigmoid(outer_layer)
 
         # reference: https://www.geeksforgeeks.org/implementing-an-autoencoder-in-pytorch/
         encoded = self.encoder(inputs)
@@ -113,7 +132,6 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     :param num_epoch: int
     :return: None
     """
-    # TODO: Add a regularizer to the cost function. 
 
     # Tell PyTorch you are training the model.
     model.train()
@@ -121,43 +139,64 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     # Define optimizers and loss function.
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
+
+    # reference: scipy.sparse.csc_matrix documentation
+    valid_sparse = csc_matrix((valid_data["is_correct"], (valid_data["user_id"], valid_data["question_id"])),
+                              shape=train_data.shape, dtype=np.int32).toarray()
+    valid_sparse = torch.FloatTensor(valid_sparse)
+
+    # count the number of non-zero entries, will be used to normalizing the squared loss
+    N_valid = np.count_nonzero(valid_sparse)
+    N_train = np.count_nonzero(zero_train_data)
+
     valid_acc_list = []
     train_cost_list = []
+    valid_cost_list = []
+
     for epoch in range(0, num_epoch):
         train_loss = 0.
-
         for user_id in range(num_student):
             inputs = Variable(zero_train_data[user_id]).unsqueeze(0)
-            target = inputs.clone()
-
+            target_train = inputs.clone()
             optimizer.zero_grad()
             output = model(inputs)
-            # print(output)
+
             # Mask the target to only compute the gradient of valid entries.
-            nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
-            target[0][nan_mask] = output[0][nan_mask]
+            nan_mask_train = np.isnan(train_data[user_id].unsqueeze(0).numpy())
+            target_train[0][nan_mask_train] = output[0][nan_mask_train]
 
-            loss = torch.sum((output - target) ** 2) + 0.5 * lamb * model.get_weight_norm()  # with L2 regularization
+            loss = torch.sum(
+                (output - target_train) ** 2)  # + 0.5 * lamb * model.get_weight_norm()  # with L2 regularization
             loss.backward()
-
             train_loss += loss.item()
             optimizer.step()
 
+        loss_valid = valid_loss(model, zero_train_data, valid_data)
+        valid_cost_list.append(loss_valid)
         valid_acc = evaluate(model, zero_train_data, valid_data)
         train_cost_list.append(train_loss)
         valid_acc_list.append(valid_acc)
 
-        print("Epoch: {} \tTraining Cost: {:.6f}\t "
-              "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+        print("Epoch: {epoch}, Training loss: {train_loss}, "
+              "Validation Loss: {valid_loss}, Valid Accuracy: {acc}".format(epoch=epoch,
+                                                                            train_loss=train_loss,
+                                                                            valid_loss=loss_valid, acc=valid_acc))
     epochs = np.arange(0, num_epoch, 1)
+    plt.plot(epochs, np.array(valid_cost_list) / N_valid, label="average validation loss")
+    plt.plot(epochs, np.array(train_cost_list) / N_train, label="average training loss")
+    plt.xlabel("Number of epochs")
+    plt.ylabel("Average training and validation loss")
+    plt.legend()
+    plt.show()
     plot(epochs, valid_acc_list, "validation accuracy", "validation accuracy vs number of epochs")
     plot(epochs, train_cost_list, "training loss", "training loss vs number of epochs")
+    return valid_acc_list[-1]  # returns final validation accuracy
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
 
 
-def plot(x, y, ylabel, title,xlabel="number of epochs"):
+def plot(x, y, ylabel, title, xlabel="number of epochs"):
     plt.plot(x, y)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -191,19 +230,47 @@ def evaluate(model, train_data, valid_data):
     return correct / float(total)
 
 
+def valid_loss(model, train_data, valid_data):
+    """ Evaluate the valid_data on the current model.
+
+    :param model: Module
+    :param train_data: 2D FloatTensor
+    :param valid_data: A dictionary {user_id: list,
+    question_id: list, is_correct: list}
+    :return: float
+    """
+    # Tell PyTorch you are evaluating the model.
+    model.eval()
+    loss = 0
+
+    for i, u in enumerate(valid_data["user_id"]):
+        inputs = Variable(train_data[u]).unsqueeze(0)
+        output = model(inputs)
+        guess = output[0][valid_data["question_id"][i]].item()
+        loss += (guess - valid_data["is_correct"][i]) ** 2
+    return loss
+
+
+def to_sparse_matrix(val_data, train_matrix):
+    N, M = train_matrix.shape
+    val_sparse = np.zeros((N, M))
+    for i in range(len(val_data["is_correct"])):
+        val_sparse[val_data["user_id"][i], val_data["question_id"][i]] = val_data["is_correct"][i]
+    return val_sparse
+
+
 def main():
     zero_train_matrix, train_matrix, valid_data, test_data = load_data()
     num_question = train_matrix.shape[1]
     #####################################################################
-    # TODO:                                                             #
+    # TODO:                                                       #
     # Try out 5 different k and select the best k using the             #
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
     k_list = [10, 50, 100, 200, 500]
     lamb_list = [0.001, 0.01, 0.1, 1]
-    k = k_list[0]
-    model = AutoEncoder(num_question, k)
+    k = k_list[0]  # k=10
 
     # Set optimization hyperparameters (below are the hyperparameters tuned to optimal values).
     lr = 0.025
@@ -212,10 +279,13 @@ def main():
     # optimal lamb = 0.001: final valid acc = 0.6895
 
     # k* = 10
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
+
+    model = AutoEncoder(num_question, k)
+    final_valid_acc = train(model, lr, lamb, train_matrix, zero_train_matrix,
+                            valid_data, num_epoch)
     test_acc = evaluate(model, zero_train_matrix, test_data)
-    print(test_acc)
+    print(test_acc, final_valid_acc)
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
