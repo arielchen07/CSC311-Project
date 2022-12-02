@@ -1,4 +1,3 @@
-from scipy.sparse import lil_matrix
 from utils import *
 from torch.autograd import Variable
 
@@ -33,8 +32,6 @@ def load_data(base_path="../data"):
     train_matrix = load_train_sparse(base_path).toarray()
     valid_data = load_valid_csv(base_path)
     test_data = load_public_test_csv(base_path)
-    # TODO: convert valid_data from dict to sparse matrix
-    #  https://stackoverflow.com/questions/43381336/create-a-sparse-matrix-from-dictionary
 
     zero_train_matrix = train_matrix.copy()
     # Fill in the missing entries to 0.
@@ -65,21 +62,7 @@ class AutoEncoder(nn.Module):
             self.g,
             torch.nn.Sigmoid()
         )
-        # self.encoder = torch.nn.Sequential(
-        #     self.g,
-        #     torch.nn.Sigmoid(),
-        #     self.f,  # 50, 5
-        #     torch.nn.Sigmoid(),
-        #
-        # )
 
-        # self.decoder = torch.nn.Sequential(
-        #
-        #     self.q,
-        #     torch.nn.Sigmoid(),
-        #     self.h,
-        #     torch.nn.Sigmoid()
-        # )
         self.decoder = torch.nn.Sequential(
             self.h,
             torch.nn.Sigmoid()
@@ -166,7 +149,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             target_train[0][nan_mask_train] = output[0][nan_mask_train]
 
             loss = torch.sum(
-                (output - target_train) ** 2)  # + 0.5 * lamb * model.get_weight_norm()  # with L2 regularization
+                (output - target_train) ** 2) + 0.5 * lamb * model.get_weight_norm()  # with L2 regularization
             loss.backward()
             train_loss += loss.item()
             optimizer.step()
@@ -262,29 +245,21 @@ def to_sparse_matrix(val_data, train_matrix):
 def main():
     zero_train_matrix, train_matrix, valid_data, test_data = load_data()
     num_question = train_matrix.shape[1]
-    #####################################################################
-    # TODO:                                                       #
-    # Try out 5 different k and select the best k using the             #
-    # validation set.                                                   #
-    #####################################################################
     # Set model hyperparameters.
     k_list = [10, 50, 100, 200, 500]
     lamb_list = [0.001, 0.01, 0.1, 1]
-    k = k_list[0]  # k=10
+    k = k_list[0]
 
     # Set optimization hyperparameters (below are the hyperparameters tuned to optimal values).
     lr = 0.025
     num_epoch = 45
     lamb = lamb_list[0]
-    # optimal lamb = 0.001: final valid acc = 0.6895
-
-    # k* = 10
 
     model = AutoEncoder(num_question, k)
     final_valid_acc = train(model, lr, lamb, train_matrix, zero_train_matrix,
                             valid_data, num_epoch)
     test_acc = evaluate(model, zero_train_matrix, test_data)
-    print(test_acc, final_valid_acc)
+    print("Final test accuracy: {test}, Final valid accuracy: {valid}".format(test=test_acc, valid=final_valid_acc))
 
     #####################################################################
     #                       END OF YOUR CODE                            #
