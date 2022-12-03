@@ -3,13 +3,12 @@
 # This is the ensemble for Item Response Theory.
 # For more description, please see our report.
 
-from utils import *
 from item_response import *
 
 import numpy as np
 
 # this statement is used to get same set of results every time we run.
-# np.random.seed(311)
+np.random.seed(1)
 
 
 def generate_new_dataset(data):
@@ -32,7 +31,7 @@ def generate_new_dataset(data):
     return new_dataset
 
 
-def irt(data, val_data, lr, iterations):
+def irt_pred(data, val_data, lr, iterations):
     """ Train IRT model and return the prediction.
 
         :param data: A dictionary {user_id: list, question_id: list,
@@ -47,10 +46,10 @@ def irt(data, val_data, lr, iterations):
     theta = np.full(542, 0.5)
     beta = np.zeros(1774)
     for i in range(iterations):
-        neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
-        score = evaluate(data=val_data, theta=theta, beta=beta)
-        print(
-            "Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
+        # neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
+        # score = evaluate(data=val_data, theta=theta, beta=beta)
+        # print(
+        #     "Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta = update_theta_beta(data, lr, theta, beta)
 
     # predict
@@ -79,17 +78,18 @@ def irt(data, val_data, lr, iterations):
 
 def ensemble_3(train_data, val_data, lr, iteration):
     """
-    Select and train 3 base models with bootstrapping the
+    Select and train 3 base models with bootstrapping the train_data, genrate 3
+    predictions and average them to get final result.
     """
 
     train_1 = generate_new_dataset(train_data)
-    pred1 = irt(train_1, val_data, lr, iteration)
+    pred1 = irt_pred(train_1, val_data, lr, iteration)
 
     train_2 = generate_new_dataset(train_data)
-    pred2 = irt(train_2, val_data, lr, iteration)
+    pred2 = irt_pred(train_2, val_data, lr, iteration)
 
     train_3 = generate_new_dataset(train_data)
-    pred3 = irt(train_3, val_data, lr, iteration)
+    pred3 = irt_pred(train_3, val_data, lr, iteration)
 
     # average predictions for val_data
     avg_pred = []
@@ -109,10 +109,8 @@ def main():
     test_data = load_public_test_csv("../data")
 
     # initialize hyperparameter
-    num_iteration = 150
-    lr = 0.001
-
-    # print(val_data['is_correct'])
+    num_iteration = 280
+    lr = 0.0005
 
     val_acc = ensemble_3(train_data, val_data, lr, num_iteration)
     print(f'The validation accuracy of ensemble is'
@@ -120,7 +118,7 @@ def main():
 
     # performance on test data
     test_acc = ensemble_3(train_data, test_data, lr, num_iteration)
-    print(f'The averaged test accuracy of ensemble is'
+    print(f'The test accuracy of ensemble is'
           f' {test_acc}')
 
 
