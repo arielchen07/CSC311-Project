@@ -151,8 +151,10 @@ def main():
     num_iteration = 100
     lr = 0.001
 
-    theta, beta, acc, train_log_like, val_log_like = irt(train_data, val_data, lr, num_iteration)
-    print(f"hyperparameters: \n num_iteration = {num_iteration}, learning rate = {lr}")
+    theta, beta, acc, train_log_like, val_log_like = \
+        irt(train_data, val_data, lr, num_iteration)
+    print(f"hyperparameters: \n num_iteration = "
+          f"{num_iteration}, learning rate = {lr}")
     print("val accuracy: ")
     print(evaluate(val_data, theta, beta))
     print("test accuracy: ")

@@ -48,7 +48,8 @@ def irt_pred(data, val_data, lr, iterations):
     for i in range(iterations):
         if i % 50 == 0:
             print(f"\t\tcurrently at iteration {i} for training")
-        # uncomment the lines below to see the neg_log_likelihood at each iteration
+        # uncomment the lines below to see the neg_log_likelihood
+        # at each iteration
         # neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
         # score = evaluate(data=val_data, theta=theta, beta=beta)
         # print(
