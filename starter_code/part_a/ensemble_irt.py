@@ -46,11 +46,15 @@ def irt_pred(data, val_data, lr, iterations):
     theta = np.full(542, 0.5)
     beta = np.zeros(1774)
     for i in range(iterations):
+        if i % 50 == 0:
+            print(f"\t\tcurrently at iteration {i} for training")
+        # uncomment the lines below to see the neg_log_likelihood at each iteration
         # neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
         # score = evaluate(data=val_data, theta=theta, beta=beta)
         # print(
-        #     "Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
+        #     "\t\tIteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta = update_theta_beta(data, lr, theta, beta)
+    print("\t\ttraining finished")
 
     # predict
     pred = []
@@ -62,18 +66,7 @@ def irt_pred(data, val_data, lr, iterations):
             pred.append(1)
         else:
             pred.append(0)
-        # pred.append(p_a >= 0.5)
     return pred
-
-
-# def predict(data, theta, beta):
-#     pred = []
-#     for i, q in enumerate(data["question_id"]):
-#         u = data["user_id"][i]
-#         x = (theta[u] - beta[q]).sum()
-#         p_a = sigmoid(x)
-#         pred.append(p_a >= 0.5)
-#     return pred
 
 
 def ensemble_3(train_data, val_data, lr, iteration):
@@ -81,13 +74,15 @@ def ensemble_3(train_data, val_data, lr, iteration):
     Select and train 3 base models with bootstrapping the train_data, genrate 3
     predictions and average them to get final result.
     """
-
+    print("\t model 1 processing (this could take a while)")
     train_1 = generate_new_dataset(train_data)
     pred1 = irt_pred(train_1, val_data, lr, iteration)
 
+    print("\t model 2 processing (this could take a while)")
     train_2 = generate_new_dataset(train_data)
     pred2 = irt_pred(train_2, val_data, lr, iteration)
 
+    print("\t model 3 processing (this could take a while)")
     train_3 = generate_new_dataset(train_data)
     pred3 = irt_pred(train_3, val_data, lr, iteration)
 
@@ -112,11 +107,13 @@ def main():
     num_iteration = 280
     lr = 0.0005
 
+    print("Validation set prediction generating")
     val_acc = ensemble_3(train_data, val_data, lr, num_iteration)
     print(f'The validation accuracy of ensemble is'
           f' {val_acc}')
 
     # performance on test data
+    print("\nTest set prediction generating")
     test_acc = ensemble_3(train_data, test_data, lr, num_iteration)
     print(f'The test accuracy of ensemble is'
           f' {test_acc}')

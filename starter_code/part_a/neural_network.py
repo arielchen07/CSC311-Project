@@ -2,10 +2,8 @@ from utils import *
 from torch.autograd import Variable
 
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
-import scipy.sparse as sp
 
 import numpy as np
 import torch
@@ -13,8 +11,8 @@ import matplotlib.pyplot as plt
 
 from scipy.sparse import csc_matrix
 
-from starter_code.utils import load_train_sparse, load_valid_csv, load_public_test_csv
-
+# if the code is not running for you, try uncomment the line below (especially if you are using a Mac computer)
+# from starter_code.utils import load_train_sparse, load_valid_csv, load_public_test_csv
 
 def load_data(base_path="../data"):
     """ Load the data in PyTorch Tensor.

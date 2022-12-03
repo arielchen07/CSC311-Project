@@ -1,11 +1,6 @@
 from matplotlib import pyplot as plt
-import scipy.sparse
-from scipy.sparse import csr_matrix, lil_matrix
-
 from utils import *
-
 import numpy as np
-
 
 def sigmoid(x):
     """ Apply sigmoid function.

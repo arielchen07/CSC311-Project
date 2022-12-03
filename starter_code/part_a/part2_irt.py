@@ -1,7 +1,4 @@
 from matplotlib import pyplot as plt
-import scipy.sparse
-from scipy.sparse import csr_matrix, lil_matrix
-
 from utils import *
 
 import numpy as np
@@ -24,6 +21,7 @@ def neg_log_likelihood(data, theta, beta, alpha, c):
     :param theta: Vector
     :param beta: Vector
     :param alpha: Vector (how discriminative each question is)
+    :param c: float (probability of getting a correct response by random guess)
     :return: float
     """
     #####################################################################
@@ -61,7 +59,7 @@ def update_theta_beta(data, lr, theta, beta, alpha, c):
     :param theta: Vector
     :param beta: Vector
     :param alpha: Vector (how discriminative each question is)
-    :param c: parameter for random guess (probability of getting a question right by random guess)
+    :param c: float (probability of getting a correct response by random guess)
     :return: tuple of vectors
     """
     #####################################################################
@@ -97,7 +95,6 @@ def update_theta_beta(data, lr, theta, beta, alpha, c):
         question_id = data["question_id"][i]
         c_ij = data["is_correct"][i]
         sig = sigmoid(alpha[question_id] * (theta[user_id] - beta[question_id]))
-        # partial_alpha[question_id] += (c_ij - sig) * (theta[user_id] - beta[question_id])
         partial_alpha[question_id] += ((1 - c) * sig * (1 - sig) * (theta[user_id] - beta[question_id])) * \
                                       (c_ij / (c + (1 - c) * sig) - (1 - c_ij) / (1 - c - (1 - c) * sig))
     alpha += lr * partial_alpha
@@ -119,6 +116,7 @@ def irt(data, val_data, lr, iterations, c):
     is_correct: list}
     :param lr: float
     :param iterations: int
+    :param c: float (probability of getting a correct response by random guess)
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
@@ -151,13 +149,14 @@ def evaluate(data, theta, beta, alpha, c):
 
     :param theta: Vector
     :param beta: Vector
+    :param alpha: Vector (how discriminative each question is)
+    :param c: float (probability of getting a correct response by random guess)
     :return: float
     """
     pred = []
     for i, q in enumerate(data["question_id"]):
         u = data["user_id"][i]
         x = (theta[u] - beta[q]).sum()
-        # p_a = sigmoid(alpha[q] * x)
         p_a = c + (1 - c) * sigmoid(alpha[q] * x)
         pred.append(p_a >= 0.5)
     return np.sum((data["is_correct"] == np.array(pred))) \
