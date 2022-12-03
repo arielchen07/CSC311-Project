@@ -5,6 +5,7 @@ from scipy.sparse import csr_matrix, lil_matrix
 from utils import *
 
 import numpy as np
+import item_response
 
 
 def sigmoid(x):
@@ -35,7 +36,6 @@ def neg_log_likelihood(data, theta, beta, alpha, c):
         c_ij = data["is_correct"][i]
         alpha_theta_minus_beta = theta_minus_beta * alpha[data["question_id"][i]]
         sig = sigmoid(alpha_theta_minus_beta)
-        # uncomment the line below to add random guess parameter c
         sig = c + (1 - c) * sig
         log_lklihood += c_ij * np.log(sig) + (1 - c_ij) * np.log(1 - sig)
 
@@ -75,8 +75,6 @@ def update_theta_beta(data, lr, theta, beta, alpha, c):
         question_id = data["question_id"][i]
         c_ij = data["is_correct"][i]
         sig = sigmoid(alpha[question_id] * (theta[user_id] - beta[question_id]))
-        # partial_theta[user_id] += (c_ij - sig) * alpha[question_id]
-        # uncomment the line below and comment the line above to add random guess parameter c
         partial_theta[user_id] += ((1 - c) * sig * (1 - sig) * alpha[question_id]) * \
                                   (c_ij / (c + (1 - c) * sig) - (1 - c_ij) / (1 - c - (1 - c) * sig))
     theta += lr * partial_theta
@@ -88,8 +86,6 @@ def update_theta_beta(data, lr, theta, beta, alpha, c):
         question_id = data["question_id"][i]
         c_ij = data["is_correct"][i]
         sig = sigmoid(alpha[question_id] * (theta[user_id] - beta[question_id]))
-        # partial_beta[question_id] += (- c_ij + sig) * alpha[question_id]
-        # uncomment the line below and comment the line above to add random guess parameter c
         partial_beta[question_id] += ((1 - c) * sig * (1 - sig) * alpha[question_id]) * \
                                   ((- c_ij) / (c + (1 - c) * sig) + (1 - c_ij) / (1 - c - (1 - c) * sig))
     beta += lr * partial_beta
@@ -102,10 +98,10 @@ def update_theta_beta(data, lr, theta, beta, alpha, c):
         c_ij = data["is_correct"][i]
         sig = sigmoid(alpha[question_id] * (theta[user_id] - beta[question_id]))
         # partial_alpha[question_id] += (c_ij - sig) * (theta[user_id] - beta[question_id])
-        # uncomment the line below and comment the line above to add random guess parameter c
         partial_alpha[question_id] += ((1 - c) * sig * (1 - sig) * (theta[user_id] - beta[question_id])) * \
                                       (c_ij / (c + (1 - c) * sig) - (1 - c_ij) / (1 - c - (1 - c) * sig))
     alpha += lr * partial_alpha
+    alpha = np.clip(alpha, 0, 2)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -138,8 +134,8 @@ def irt(data, val_data, lr, iterations, c):
         neg_lld = neg_log_likelihood(data, theta=theta, beta=beta, alpha=alpha, c=c)
         val_neg_lld = neg_log_likelihood(val_data, theta=theta, beta=beta, alpha=alpha, c=c)
         score = evaluate(data=val_data, theta=theta, beta=beta, alpha=alpha, c=c)
-        train_log_like.append(-neg_lld)
-        val_log_like.append(-val_neg_lld)
+        train_log_like.append(neg_lld)
+        val_log_like.append(val_neg_lld)
         val_acc_lst.append(score)
         print("Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta, r = update_theta_beta(data, lr, theta, beta, alpha, c)
@@ -162,7 +158,6 @@ def evaluate(data, theta, beta, alpha, c):
         u = data["user_id"][i]
         x = (theta[u] - beta[q]).sum()
         # p_a = sigmoid(alpha[q] * x)
-        # uncomment the line below to add random guess parameter c
         p_a = c + (1 - c) * sigmoid(alpha[q] * x)
         pred.append(p_a >= 0.5)
     return np.sum((data["is_correct"] == np.array(pred))) \
@@ -181,49 +176,61 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
+    c_1 = 0.25
+    c_0 = 0
+
+    # uncomment code below to see validation results for each hyperparameter combination
+    # warning: this could take very long time
+    # num_iterations = [100, 150, 200]
+    # lr = [0.0025, 0.001, 0.005]
+    # for itr in num_iterations:
+    #     for rate in lr:
+    #         print(f"num iteration = {itr}, learning rate = {rate}")
+    #         theta, beta, alpha, acc, train_log_like, val_log_like = irt(train_data, val_data, rate, itr, c_1)
+    #         print(f"val accuracy modified c = {c_1}: {evaluate(val_data, theta, beta, alpha, c_1)}")
+    #         theta, beta, alpha, acc, train_log_like, val_log_like = irt(train_data, val_data, rate, itr, c_0)
+    #         print(f"val accuracy modified c = {c_0}: {evaluate(val_data, theta, beta, alpha, c_0)}")
+    #         theta, beta, acc, train_log_like, val_log_like = item_response.irt(train_data, val_data, rate, itr)
+    #         print(f"val accuracy old: {item_response.evaluate(val_data, theta, beta)}")
+
     # hyperparameter:
-    num_iteration = 120
-    lr = 0.0025
-    c = 0.25
+    # hyperparameters for modified irt (c = 0.25): num iteration = 100, learning rate = 0.0025
+    # hyperparameters for modified irt (c = 0): num iteration = 100, learning rate = 0.001
+    # hyperparameters for original irt: num iteration = 150, learning rate = 0.001
+    print(f"hyperparameters used: num iteration = 100, learning rate = 0.0025")
+    theta, beta, alpha, acc, train_log_like_1, val_log_like_1 = irt(train_data, val_data, 0.0025, 100, c_1)
+    print(f"val accuracy modified c = {c_1}: {evaluate(val_data, theta, beta, alpha, c_1)}")
+    print(f"test accuracy modified c = {c_1}: {evaluate(test_data, theta, beta, alpha, c_1)}")
+    print(f"hyperparameters used: num iteration = 100, learning rate = 0.001")
+    theta, beta, alpha, acc, train_log_like_2, val_log_like_2 = irt(train_data, val_data, 0.001, 100, c_0)
+    print(f"val accuracy modified c = {c_0}: {evaluate(val_data, theta, beta, alpha, c_0)}")
+    print(f"test accuracy modified c = {c_0}: {evaluate(test_data, theta, beta, alpha, c_0)}")
+    print(f"hyperparameters used: num iteration = 150, learning rate = 0.001")
+    theta, beta, acc, train_log_like_3, val_log_like_3 = item_response.irt(train_data, val_data, 0.001, 150)
+    print(f"val accuracy original: {item_response.evaluate(val_data, theta, beta)}")
+    print(f"test accuracy original: {item_response.evaluate(test_data, theta, beta)}")
 
-    theta, beta, alpha, acc, train_log_like, val_log_like = irt(train_data, val_data, lr, num_iteration, c)
-    print("val accuracy: ")
-    print(evaluate(val_data, theta, beta, alpha, c))
-    print("test accuracy: ")
-    print(evaluate(test_data, theta, beta, alpha, c))
-
-    plt.plot([x for x in range(num_iteration)], train_log_like, label="train loglike")
+    plt.plot([x for x in range(100)], train_log_like_1, label="train neg-loglike, modified c = 0.25")
+    plt.plot([x for x in range(100)], train_log_like_2, label="train neg-loglike, modified c = 0")
+    plt.plot([x for x in range(150)], train_log_like_3, label="train neg-loglike, original")
     plt.xlabel("number of iterations")
-    plt.ylabel("log likelihood")
-    plt.title("Log likelihood vs iteration")
+    plt.ylabel("negative log likelihood")
+    plt.title("Negative Log likelihood for Training Set")
     plt.legend()
     plt.show()
 
-    plt.plot([x for x in range(num_iteration)], val_log_like, label="val loglike")
+    plt.plot([x for x in range(100)], val_log_like_1, label="val neg-loglike, modified c = 0.25")
+    plt.plot([x for x in range(100)], val_log_like_2, label="val neg-loglike, modified c = 0")
+    plt.plot([x for x in range(150)], val_log_like_3, label="val neg-loglike, original")
     plt.xlabel("number of iterations")
-    plt.ylabel("log likelihood")
-    plt.title("Log likelihood vs iteration")
+    plt.ylabel("negative log likelihood")
+    plt.title("Negative Log likelihood for Validation Set")
     plt.legend()
     plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
 
-    #####################################################################
-    # TODO:                                                             #
-    # Implement part (d)
-    plt.scatter(theta, [sigmoid(t - beta[2]) for t in theta], label="q2")
-    plt.scatter(theta, [sigmoid(t - beta[3]) for t in theta], label="q3")
-    plt.scatter(theta, [sigmoid(t - beta[4]) for t in theta], label="q4")
-    plt.xlabel("theta")
-    plt.ylabel("probability p(c_ij = 1)")
-    plt.title("Probability vs Theta")
-    plt.legend()
-    plt.show()
-    #####################################################################
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
 
 if __name__ == "__main__":
     main()
