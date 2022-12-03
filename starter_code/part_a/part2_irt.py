@@ -135,7 +135,9 @@ def irt(data, val_data, lr, iterations, c):
         train_log_like.append(neg_lld)
         val_log_like.append(val_neg_lld)
         val_acc_lst.append(score)
-        print("Iteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
+        # uncomment the if statement below if you want to view NLLK and Score at every iteration
+        if i % 20 == 0:
+            print("\tIteration: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta, r = update_theta_beta(data, lr, theta, beta, alpha, c)
 
     # TODO: You may change the return values to achieve what you want.
@@ -196,15 +198,19 @@ def main():
     # hyperparameters for modified irt (c = 0.25): num iteration = 100, learning rate = 0.0025
     # hyperparameters for modified irt (c = 0): num iteration = 100, learning rate = 0.001
     # hyperparameters for original irt: num iteration = 150, learning rate = 0.001
-    print(f"hyperparameters used: num iteration = 100, learning rate = 0.0025")
+    print("For cleaner display, we will not print out NLLK and Accuracy at every iteration")
+
+    print(f"\nRunning modified model c = {c_1}: hyperparameters used: num iteration = 100, learning rate = 0.0025")
     theta, beta, alpha, acc, train_log_like_1, val_log_like_1 = irt(train_data, val_data, 0.0025, 100, c_1)
     print(f"val accuracy modified c = {c_1}: {evaluate(val_data, theta, beta, alpha, c_1)}")
     print(f"test accuracy modified c = {c_1}: {evaluate(test_data, theta, beta, alpha, c_1)}")
-    print(f"hyperparameters used: num iteration = 100, learning rate = 0.001")
+
+    print(f"\nRunning modified model c = {c_0}: hyperparameters used: num iteration = 100, learning rate = 0.001")
     theta, beta, alpha, acc, train_log_like_2, val_log_like_2 = irt(train_data, val_data, 0.001, 100, c_0)
     print(f"val accuracy modified c = {c_0}: {evaluate(val_data, theta, beta, alpha, c_0)}")
     print(f"test accuracy modified c = {c_0}: {evaluate(test_data, theta, beta, alpha, c_0)}")
-    print(f"hyperparameters used: num iteration = 150, learning rate = 0.001")
+
+    print(f"\nRunning original model: hyperparameters used: num iteration = 150, learning rate = 0.001")
     theta, beta, acc, train_log_like_3, val_log_like_3 = item_response.irt(train_data, val_data, 0.001, 150)
     print(f"val accuracy original: {item_response.evaluate(val_data, theta, beta)}")
     print(f"test accuracy original: {item_response.evaluate(test_data, theta, beta)}")
