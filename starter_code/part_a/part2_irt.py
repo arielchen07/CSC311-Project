@@ -231,21 +231,6 @@ def main():
     #                       END OF YOUR CODE                            #
     #####################################################################
 
-    #####################################################################
-    # TODO:                                                             #
-    # Implement part (d)
-    plt.scatter(theta, [sigmoid(t - beta[2]) for t in theta], label="q2")
-    plt.scatter(theta, [sigmoid(t - beta[3]) for t in theta], label="q3")
-    plt.scatter(theta, [sigmoid(t - beta[4]) for t in theta], label="q4")
-    plt.xlabel("theta")
-    plt.ylabel("probability p(c_ij = 1)")
-    plt.title("Probability vs Theta")
-    plt.legend()
-    plt.show()
-    #####################################################################
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
 
 if __name__ == "__main__":
     main()
