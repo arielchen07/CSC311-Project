@@ -6,4 +6,4 @@ In this project, we implemented various machine learning algorithms to predict s
 In part A, we explored three different approaches for our project, namely **KNN, IRT (Item Response Theory)**, and **Neural Networks**. Additionally, we implemented an ensemble method for IRT to enhance the stability and accuracy of our base model. <br />
 In part B, we focused on optimizing the IRT algorithm to further improve its accuracy.<br />
 
-All code can be found in (/starter_code). <br />
+All code can be found in [](/starter_code). <br />
